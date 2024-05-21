@@ -33,14 +33,25 @@ def add_contact(args, book: AddressBook):
         record.add_phone(phone)
     return message
 
-# @input_error
-# def change_contact(args, contacts):
-#     name, phone = args
-#     if name in contacts:
-#         contacts[name] = phone
-#         return "Contact updated."
-#     else:
-#         return f"The contact with the name '{name}' does NOT exist!"
+@input_error
+def change_contact(args, book: AddressBook):
+    name, phone, *_ = args
+    record = book.find(name)
+    if record is None:
+        return f"The contact with the name '{name}' does NOT exist!"
+    if phone:
+        if len(args) > 2:
+            # change the old phone number to the new phone number (old_phone = args[1]; new_phone = args[2])
+            record.edit_phone(phone, args[2])
+        else:
+            if record.find_phone(phone):
+                # remove old phone number if phone exist
+                record.remove_phone(phone)
+            else:
+                # keep only the new phone number
+                [record.remove_phone(str(phone)) for phone in record.phones.copy()]
+                record.add_phone(phone)
+        return "Contact updated."
 
 
 @input_error
@@ -52,11 +63,7 @@ def show_phone(args, book: AddressBook):
 
 @input_error
 def show_all(book: AddressBook):
-    return_str = "\n"
-    for name, record in book.data.items():
-        return_str += f"{record} \n"
-    return return_str
-    # return '\n'.join(map('\t'.join, book.data.items()))
+    return '\n'.join([f"{record}" for record in book.data.values()])
 
 @input_error
 def add_birthday(args, book: AddressBook):
@@ -79,7 +86,7 @@ def show_birthday(args, book: AddressBook):
 
 @input_error
 def show_birthdays(book: AddressBook):
-    return book.get_upcoming_birthdays()
+    return '\n'.join([f"{birth['congratulation_date']} - {birth['name']}" for birth in book.get_upcoming_birthdays()])
 
 
 def help_info():
@@ -99,7 +106,6 @@ def help_info():
 
 
 def main():
-    #contacts = {}
     book = AddressBook()
     print("Welcome to the assistant bot!")
     while True:
@@ -119,7 +125,7 @@ def main():
 
         # > change [ім'я] [новий номер телефону]
         elif command == "change":
-            print(add_contact(args, book))
+            print(change_contact(args, book))
 
         # > phone [ім'я]
         elif command == "phone":

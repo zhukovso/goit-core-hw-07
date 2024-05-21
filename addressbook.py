@@ -45,32 +45,21 @@ class Name(Field):
 
 class Phone(Field):
     def __init__(self, value):
-        if not self.validate_phone_number(value):
+        if not Phone.validate_phone_number(value):
             raise PhoneNumberValidationError(f"Phone number {value} should contain exactly 10 digits..")
         super().__init__(value)
 
-    # TODO: function validate_phone_number() make static
-    def validate_phone_number(self, phone_number: str) -> bool:
+    @staticmethod
+    def validate_phone_number(phone_number: str) -> bool:
         cleaned_number = re.sub(r'\D', '', phone_number)
         return len(cleaned_number) == 10
 
 class Birthday(Field):
     def __init__(self, value):
         try:
-            # Додайте перевірку коректності даних
-            # та перетворіть рядок на об'єкт datetime
             super().__init__(datetime.strptime(value, '%d.%m.%Y').date())
         except ValueError:
             raise BirthdayValidationError(f"Invalid date format for birthday {value}. Use DD.MM.YYYY")
-
-    # # TODO: function validate_birthday() make static
-    # def validate_birthday(self, birthday: str) -> bool:
-    #     date_birthday = None
-    #     try:
-    #         date_birthday = datetime.strptime(birthday, '%d.%m.%Y')
-    #     except ValueError:
-    #         pass
-    #     return type(date_birthday) is datetime
 
 class Record:
     def __init__(self, name):
@@ -81,13 +70,13 @@ class Record:
     @input_error
     def add_phone(self, phone_number: str):
         if self.find_phone(phone_number):
-            raise PhoneNumberExist(f"Phone number {phone_number} exists in {self.name} numbers..")
+            raise PhoneNumberExist(f"Phone number {phone_number} already exists in {self.name} numbers..")
         self.phones.append(Phone(phone_number))
         return self
 
     @input_error
     def remove_phone(self, phone_number: str) -> None:
-        if not self.find_phone(phone_number):
+        if self.find_phone(phone_number) is None:
             raise PhoneNumberNotFound(f"While remove, phone number {phone_number} was not found in {self.name} numbers..")
         if Phone(phone_number):
             self.phones = [phone for phone in self.phones if phone.value != phone_number]
@@ -122,44 +111,47 @@ class AddressBook(UserDict):
     def delete(self, name):
         self.data = {key: value for key, value in self.data.items() if key.value != name}
 
-
-    def string_to_date(self, date_string):
+    @staticmethod
+    def string_to_date(date_string: str) -> date:
         return datetime.strptime(date_string, '%d.%m.%Y').date()
 
-    def date_to_string(self, date):
+    @staticmethod
+    def date_to_string(date: date) -> str:
         return date.strftime('%d.%m.%Y')
 
-    def prepare_user_list(self, user_data: UserDict):
+    @staticmethod
+    def prepare_user_list(user_data: UserDict):
         prepared_list = []
         for user in user_data:
             prepared_list.append({"name": user.name.value, "birthday": user.birthday.value})
         return prepared_list
 
-    def find_next_weekday(start_date, weekday):
+    @staticmethod
+    def find_next_weekday(start_date: datetime, weekday: int):
         days_ahead = weekday - start_date.weekday()
         if days_ahead <= 0:
             days_ahead += 7
         return start_date + timedelta(days=days_ahead)
 
-    def adjust_for_weekend(self, birthday):
+    @staticmethod
+    def adjust_for_weekend(birthday):
         if birthday.weekday() >= 5:
-            return self.find_next_weekday(birthday, 0)
+            return AddressBook.find_next_weekday(birthday, 0)
         return birthday
 
     def get_upcoming_birthdays(self, days=7):
         upcoming_birthdays = []
         today = date.today()
 
-        for user in self.prepare_user_list(self.data.values()):
-            birthday_this_year = user["birthday"].replace(year=today.year)
+        for user in self.data.values():
+            birthday_this_year = user.birthday.value.replace(year=today.year)
             if birthday_this_year < today: 
-                birthday_this_year = user["birthday"].replace(year=today.year+1)            
+                birthday_this_year = user.birthday.value.replace(year=today.year+1)
 
             if 0 <= (birthday_this_year - today).days <= days:
-                congratulation_date_str = self.date_to_string(self.adjust_for_weekend(birthday_this_year))
-                upcoming_birthdays.append({"name": user["name"], "congratulation_date": congratulation_date_str})
+                congratulation_date_str = AddressBook.date_to_string(AddressBook.adjust_for_weekend(birthday_this_year))
+                upcoming_birthdays.append({"name": user.name.value, "congratulation_date": congratulation_date_str})
         return upcoming_birthdays
-
 
 
 if __name__ == "__main__":
